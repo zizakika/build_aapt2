@@ -22,11 +22,12 @@ jobs:
       with:
         platforms: arm64
 
-    - name: Biên dịch trực tiếp trong Container ARM64 (Không dùng cờ -static)
+    - name: Biên dịch trực tiếp trong Container Ubuntu ARM64 chính thức
       run: |
-        # Chạy một container Ubuntu ARM64 thật để biên dịch, đảm bảo độ tương thích System Call tối đa
-        docker run --rm --platform linux/arm64 -v ${{ github.workspace }}:/ws wnameless/unrar-emulated:latest /bin/sh -c "
-          apt-get update && apt-get install -y gcc &&
+        # Sử dụng image chính thức arm64v8/ubuntu để đảm bảo luôn pull thành công
+        docker run --rm --platform linux/arm64 -v ${{ github.workspace }}:/ws arm64v8/ubuntu:22.04 /bin/bash -c "
+          apt-get update && 
+          apt-get install -y gcc && 
           gcc /ws/aapt2_proxy.c -o /ws/aapt2-linux-arm64
         "
 
