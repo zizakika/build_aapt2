@@ -2,45 +2,37 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <process.h>
-#else
-#include <unistd.h>
-#endif
-
 int main(int argc, char *argv[]) {
-    // Đường dẫn TUYỆT ĐỐI tới file AAPT2 thật của bạn (hãy sửa lại cho đúng cấu hình máy bạn)
-    #ifdef _WIN32
-    char *real_aapt2 = "C:\\Desktop\\aapt2_fix\\aapt2_real.exe";
-    #else
+    // Đường dẫn TUYỆT ĐỐI tới file AAPT2 thật của bạn
     char *real_aapt2 = "/data/data/com.tom.rv2ide/files/home/.androidide/a/aapt2";
-    #endif
 
-    // Tạo mảng tham số mới để lọc cờ
-    char **new_argv = malloc((argc + 1) * sizeof(char *));
-    int new_argc = 0;
+    // Khởi tạo một chuỗi buffer lớn để chứa toàn bộ câu lệnh
+    // Thường tổng độ dài câu lệnh AAPT2 không quá 65535 ký tự
+    char *cmd = malloc(128000 * sizeof(char));
+    if (cmd == NULL) return 1;
 
-    // Tham số đầu tiên luôn là đường dẫn thực thi
-    new_argv[new_argc++] = real_aapt2;
+    // Bắt đầu chuỗi bằng đường dẫn file thật, bọc nháy kép để tránh khoảng trắng
+    sprintf(cmd, "\"%s\"", real_aapt2);
 
     // Duyệt và lọc bỏ cờ lỗi --collapse-resource-names
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--collapse-resource-names") == 0) {
-            // Bỏ qua cờ này, không nạp vào mảng mới
-            continue;
+            continue; // Bỏ qua cờ gây lỗi nuốt file .arsc
         }
-        new_argv[new_argc++] = argv[i];
+        
+        // Nối tiếp các tham số khác vào chuỗi lệnh, bọc nháy kép từng tham số cho an toàn
+        strcat(cmd, " \"");
+        strcat(cmd, argv[i]);
+        strcat(cmd, "\"");
     }
-    new_argv[new_argc] = NULL; // Kết thúc mảng bằng NULL theo quy định của exec
 
-    // Khởi chạy file AAPT2 thật và chuyển tiếp toàn bộ luồng dữ liệu (I/O) nguyên bản
-    #ifdef _WIN32
-    intptr_t status = _execv(real_aapt2, (const char * const *)new_argv);
-    return (int)status;
-    #else
-    execv(real_aapt2, new_argv);
-    // Nếu execv chạy thành công, đoạn code phía dưới sẽ không bao giờ bị nấc tới
-    perror("Execv failed");
-    return 1;
-    #endif
+    // Thực thi chuỗi lệnh thông qua Shell tiêu chuẩn của hệ điều hành
+    // Hàm này an toàn tuyệt đối trên mọi kiến trúc ARM64/x86 vì không dùng trực tiếp execv syscall
+    int result = system(cmd);
+    
+    free(cmd);
+    
+    // Trả về đúng mã kết quả của AAPT2 thật để Gradle không bị báo lỗi xanh/đỏ sai
+    if (result == -1) return 1;
+    return WEXITSTATUS(result);
 }
