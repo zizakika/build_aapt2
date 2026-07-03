@@ -19,7 +19,7 @@ jobs:
 
     - name: Biên dịch sang Linux ARM64
       run: |
-        aarch64-linux-gnu-gcc -static aapt2_proxy.c -o aapt2-linux-arm64
+        aarch64-linux-gnu-gcc aapt2_proxy.c -o aapt2-linux-arm64
         chmod +x aapt2-linux-arm64
 
     - name: Tải lên Artifact
