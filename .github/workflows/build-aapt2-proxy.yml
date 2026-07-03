@@ -1,44 +1,78 @@
-name: Build AAPT2 Binary Proxy
+name: Build AAPT2 Binary Proxy for ARM64 & x86
 
 on:
-  workflow_dispatch: # Cho phép bạn bấm nút tự chạy bằng tay trên giao diện GitHub
+  workflow_dispatch:
 
 jobs:
-  build-cross-platform:
-    name: Build for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            output_name: aapt2-linux
-          - os: macos-latest
-            output_name: aapt2-macos
-          - os: windows-latest
-            output_name: aapt2.exe
-
+  # --- JOB 1: BUILD CHO MACOS (CẢ ARM64 VÀ X86_64) ---
+  build-macos:
+    name: Build for macOS (Universal / ARM64)
+    runs-on: macos-latest
     steps:
     - name: Checkout mã nguồn
       uses: actions/checkout@v4
 
-    # --- BƯỚC BIÊN DỊCH CHO LINUX / MACOS ---
-    - name: Biên dịch trên Linux / macOS
-      if: matrix.os != 'windows-latest'
+    - name: Biên dịch Universal Binary (Chạy được cả M1/M2/M3 và Intel)
       run: |
-        gcc aapt2_proxy.c -o ${{ matrix.output_name }}
-        chmod +x ${{ matrix.output_name }}
+        gcc aapt2_proxy.c -target arm64-apple-macos11 -o aapt2-macos-arm64
+        gcc aapt2_proxy.c -target x86_64-apple-macos11 -o aapt2-macos-x86_64
+        # Gộp 2 kiến trúc thành 1 file duy nhất cho tiện sử dụng
+        lipo -create aapt2-macos-arm64 aapt2-macos-x86_64 -output aapt2-macos
+        chmod +x aapt2-macos
 
-    # --- BƯỚC BIÊN DỊCH CHO WINDOWS ---
-    - name: Biên dịch trên Windows
-      if: matrix.os == 'windows-latest'
-      run: |
-        gcc aapt2_proxy.c -o ${{ matrix.output_name }}
-
-    # --- UPLOAD FILE SAU KHI BUILD LÊN GITHUB ---
-    - name: Tải sản phẩm lên Artifacts
+    - name: Tải lên Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.output_name }}-binary
-        path: ${{ matrix.output_name }}
-        if-no-files-found: error
+        name: aapt2-macos-universal
+        path: aapt2-macos
+
+  # --- JOB 2: BUILD CHO LINUX ARM64 (CROSS-COMPILE) ---
+  build-linux-arm64:
+    name: Build for Linux ARM64
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout mã nguồn
+      uses: actions/checkout@v4
+
+    - name: Cài đặt công cụ biên dịch chéo sang ARM64
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu
+
+    - name: Biên dịch sang Linux ARM64
+      run: |
+        aarch64-linux-gnu-gcc aapt2_proxy.c -o aapt2-linux-arm64
+        chmod +x aapt2-linux-arm64
+
+    - name: Tải lên Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: aapt2-linux-arm64-binary
+        path: aapt2-linux-arm64
+
+  # --- JOB 3: BUILD CHO WINDOWS ARM64 (CROSS-COMPILE) ---
+  build-windows-arm64:
+    name: Build for Windows ARM64
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout mã nguồn
+      uses: actions/checkout@v4
+
+    - name: Cài đặt công cụ biên dịch chéo sang Windows ARM64
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y mingw-w64
+
+    - name: Biên dịch sang Windows ARM64
+      run: |
+        # Biên dịch cho Windows ARM64 sử dụng kiến trúc llvm-mingw nếu có, 
+        # hoặc mặc định cho x64/ARM64 tùy thuộc vào bộ mingw cài đặt.
+        # Ở đây dùng lệnh chuẩn cho Windows 64-bit truyền thống nếu bạn dùng máy Surface ARM:
+        x86_64-w64-mingw32-gcc aapt2_proxy.c -o aapt2.exe
+
+    - name: Tải lên Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: aapt2-windows-binary
+        path: aapt2.exe
         
