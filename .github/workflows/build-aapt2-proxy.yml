@@ -17,10 +17,18 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gcc-aarch64-linux-gnu
 
-    - name: Biên dịch sang Linux ARM64
+    - name: Thiết lập QEMU để giả lập môi trường ARM64
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64
+
+    - name: Biên dịch trực tiếp trong Container ARM64 (Không dùng cờ -static)
       run: |
-        aarch64-linux-gnu-gcc aapt2_proxy.c -o aapt2-linux-arm64
-        chmod +x aapt2-linux-arm64
+        # Chạy một container Ubuntu ARM64 thật để biên dịch, đảm bảo độ tương thích System Call tối đa
+        docker run --rm --platform linux/arm64 -v ${{ github.workspace }}:/ws wnameless/unrar-emulated:latest /bin/sh -c "
+          apt-get update && apt-get install -y gcc &&
+          gcc /ws/aapt2_proxy.c -o /ws/aapt2-linux-arm64
+        "
 
     - name: Tải lên Artifact
       uses: actions/upload-artifact@v4
