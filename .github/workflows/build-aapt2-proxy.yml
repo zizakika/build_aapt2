@@ -4,29 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  # --- JOB 1: BUILD CHO MACOS (CẢ ARM64 VÀ X86_64) ---
-  build-macos:
-    name: Build for macOS (Universal / ARM64)
-    runs-on: macos-latest
-    steps:
-    - name: Checkout mã nguồn
-      uses: actions/checkout@v4
-
-    - name: Biên dịch Universal Binary (Chạy được cả M1/M2/M3 và Intel)
-      run: |
-        gcc aapt2_proxy.c -target arm64-apple-macos11 -o aapt2-macos-arm64
-        gcc aapt2_proxy.c -target x86_64-apple-macos11 -o aapt2-macos-x86_64
-        # Gộp 2 kiến trúc thành 1 file duy nhất cho tiện sử dụng
-        lipo -create aapt2-macos-arm64 aapt2-macos-x86_64 -output aapt2-macos
-        chmod +x aapt2-macos
-
-    - name: Tải lên Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: aapt2-macos-universal
-        path: aapt2-macos
-
-  # --- JOB 2: BUILD CHO LINUX ARM64 (CROSS-COMPILE) ---
+  # --- BUILD CHO LINUX ARM64 (CROSS-COMPILE) ---
   build-linux-arm64:
     name: Build for Linux ARM64
     runs-on: ubuntu-latest
@@ -41,7 +19,7 @@ jobs:
 
     - name: Biên dịch sang Linux ARM64
       run: |
-        aarch64-linux-gnu-gcc aapt2_proxy.c -o aapt2-linux-arm64
+        aarch64-linux-gnu-gcc -static aapt2_proxy.c -o aapt2-linux-arm64
         chmod +x aapt2-linux-arm64
 
     - name: Tải lên Artifact
@@ -49,30 +27,3 @@ jobs:
       with:
         name: aapt2-linux-arm64-binary
         path: aapt2-linux-arm64
-
-  # --- JOB 3: BUILD CHO WINDOWS ARM64 (CROSS-COMPILE) ---
-  build-windows-arm64:
-    name: Build for Windows ARM64
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout mã nguồn
-      uses: actions/checkout@v4
-
-    - name: Cài đặt công cụ biên dịch chéo sang Windows ARM64
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y mingw-w64
-
-    - name: Biên dịch sang Windows ARM64
-      run: |
-        # Biên dịch cho Windows ARM64 sử dụng kiến trúc llvm-mingw nếu có, 
-        # hoặc mặc định cho x64/ARM64 tùy thuộc vào bộ mingw cài đặt.
-        # Ở đây dùng lệnh chuẩn cho Windows 64-bit truyền thống nếu bạn dùng máy Surface ARM:
-        x86_64-w64-mingw32-gcc aapt2_proxy.c -o aapt2.exe
-
-    - name: Tải lên Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: aapt2-windows-binary
-        path: aapt2.exe
-        
