@@ -1,0 +1,44 @@
+name: Build AAPT2 Binary Proxy
+
+on:
+  workflow_dispatch: # Cho phép bạn bấm nút tự chạy bằng tay trên giao diện GitHub
+
+jobs:
+  build-cross-platform:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            output_name: aapt2-linux
+          - os: macos-latest
+            output_name: aapt2-macos
+          - os: windows-latest
+            output_name: aapt2.exe
+
+    steps:
+    - name: Checkout mã nguồn
+      uses: actions/checkout@v4
+
+    # --- BƯỚC BIÊN DỊCH CHO LINUX / MACOS ---
+    - name: Biên dịch trên Linux / macOS
+      if: matrix.os != 'windows-latest'
+      run: |
+        gcc aapt2_proxy.c -o ${{ matrix.output_name }}
+        chmod +x ${{ matrix.output_name }}
+
+    # --- BƯỚC BIÊN DỊCH CHO WINDOWS ---
+    - name: Biên dịch trên Windows
+      if: matrix.os == 'windows-latest'
+      run: |
+        gcc aapt2_proxy.c -o ${{ matrix.output_name }}
+
+    # --- UPLOAD FILE SAU KHI BUILD LÊN GITHUB ---
+    - name: Tải sản phẩm lên Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.output_name }}-binary
+        path: ${{ matrix.output_name }}
+        if-no-files-found: error
+        
